@@ -13,6 +13,10 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
 
+  // Password reset fields
+  resetPasswordToken: { type: String },
+  resetPasswordExpires: { type: Date },
+
   // Add the subscription field here
   subscription: subscriptionSchema
 });

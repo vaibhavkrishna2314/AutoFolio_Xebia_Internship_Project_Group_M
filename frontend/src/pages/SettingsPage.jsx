@@ -23,12 +23,83 @@ export default function SettingsPage() {
     darkMode: false,
     publicProfile: true,
   })
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  })
+  const [passwordLoading, setPasswordLoading] = useState(false)
 
   const handleSave = () => {
     toast({
       title: "Settings saved",
       description: "Your preferences have been updated successfully.",
     })
+  }
+
+  const handlePasswordUpdate = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "New passwords do not match",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setPasswordLoading(true)
+
+    try {
+      const token = localStorage.getItem('token') // or however you store the auth token
+      const response = await fetch('/api/user/update-password', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Password updated successfully",
+        })
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: ""
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to update password",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Network error. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setPasswordLoading(false)
+    }
   }
 
   const handleDeleteAccount = () => {
@@ -141,17 +212,34 @@ export default function SettingsPage() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="current-password">Current Password</Label>
-                  <Input id="current-password" type="password" />
+                  <Input 
+                    id="current-password" 
+                    type="password" 
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="new-password">New Password</Label>
-                  <Input id="new-password" type="password" />
+                  <Input 
+                    id="new-password" 
+                    type="password" 
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirm-password">Confirm New Password</Label>
-                  <Input id="confirm-password" type="password" />
+                  <Input 
+                    id="confirm-password" 
+                    type="password" 
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  />
                 </div>
-                <Button>Update Password</Button>
+                <Button onClick={handlePasswordUpdate} disabled={passwordLoading}>
+                  {passwordLoading ? "Updating..." : "Update Password"}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>

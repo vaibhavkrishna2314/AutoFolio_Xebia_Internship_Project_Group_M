@@ -19,15 +19,39 @@ export default function ForgotPasswordPage() {
     e.preventDefault()
     setLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
 
-    setSent(true)
-    toast({
-      title: "Reset link sent",
-      description: "Check your email for password reset instructions.",
-    })
-    setLoading(false)
+      const data = await response.json();
+
+      if (response.ok) {
+        setSent(true)
+        toast({
+          title: "Reset link sent",
+          description: "Check your email for password reset instructions.",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to send reset link",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Network error. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

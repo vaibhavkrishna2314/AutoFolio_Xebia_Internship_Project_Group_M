@@ -2,7 +2,9 @@ const express = require('express');
 const { z } = require('zod');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const User = require('../models/User');
+const { sendPasswordResetEmail } = require('../services/emailService');
 
 const router = express.Router();
 
@@ -109,6 +111,80 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error("Login error:", err.message);
     return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// 🔄 FORGOT PASSWORD ROUTE
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Return success even if user doesn't exist (security best practice)
+      return res.status(200).json({ 
+        message: 'If an account with that email exists, we have sent a password reset link.' 
+      });
+    }
+    
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = Date.now() + 3600000; // 1 hour
+    
+    // Save token to user
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = resetTokenExpiry;
+    await user.save();
+    
+    // Send email
+    await sendPasswordResetEmail(email, resetToken);
+    
+    res.status(200).json({ 
+      message: 'If an account with that email exists, we have sent a password reset link.' 
+    });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// 🔄 RESET PASSWORD ROUTE
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+    
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+    
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+    
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+    
+    // Update password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+    
+    res.status(200).json({ message: 'Password reset successful' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
