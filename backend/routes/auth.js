@@ -117,7 +117,13 @@ router.post('/login', async (req, res) => {
 // 🔄 FORGOT PASSWORD ROUTE
 router.post('/forgot-password', async (req, res) => {
   try {
+    console.log('🔄 Forgot password request received');
+    console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set');
+    console.log('🔑 EMAIL_PASS:', process.env.EMAIL_PASS ? 'Set' : 'Not set');
+    console.log('🔗 FRONTEND_URL:', process.env.FRONTEND_URL);
+    
     const { email } = req.body;
+    console.log('📨 Requested email:', email);
     
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
@@ -125,11 +131,14 @@ router.post('/forgot-password', async (req, res) => {
     
     const user = await User.findOne({ email });
     if (!user) {
+      console.log('❌ User not found, but returning success for security');
       // Return success even if user doesn't exist (security best practice)
       return res.status(200).json({ 
         message: 'If an account with that email exists, we have sent a password reset link.' 
       });
     }
+    
+    console.log('✅ User found, generating reset token');
     
     // Generate reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
@@ -140,15 +149,21 @@ router.post('/forgot-password', async (req, res) => {
     user.resetPasswordExpires = resetTokenExpiry;
     await user.save();
     
+    console.log('💾 Token saved to database');
+    console.log('📧 Attempting to send email...');
+    
     // Send email
     await sendPasswordResetEmail(email, resetToken);
+    
+    console.log('✅ Email sent successfully');
     
     res.status(200).json({ 
       message: 'If an account with that email exists, we have sent a password reset link.' 
     });
   } catch (err) {
-    console.error('Forgot password error:', err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('❌ Forgot password error:', err.message);
+    console.error('Full error:', err);
+    res.status(500).json({ error: 'Server error: ' + err.message });
   }
 });
 
