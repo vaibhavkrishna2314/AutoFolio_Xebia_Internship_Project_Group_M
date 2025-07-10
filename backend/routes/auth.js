@@ -144,10 +144,14 @@ router.post('/forgot-password', async (req, res) => {
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetTokenExpiry = Date.now() + 3600000; // 1 hour
     
-    // Save token to user
-    user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = resetTokenExpiry;
-    await user.save();
+    // Save token to user using findOneAndUpdate to avoid validation issues
+    await User.findOneAndUpdate(
+      { email },
+      {
+        resetPasswordToken: resetToken,
+        resetPasswordExpires: resetTokenExpiry
+      }
+    );
     
     console.log('💾 Token saved to database');
     console.log('📧 Attempting to send email...');
